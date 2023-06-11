@@ -104,14 +104,14 @@ def dirwalk(con, dir):
             if '.' in name:
                 if name.rsplit(sep='.', maxsplit=1)[1].upper() == 'MP3':
                     x += 1
-                    mpf = eyed3.load(os.path.join(root, name))
-                    processtrack(con, mpf, root, name)
-                    if x % 1000 == 0:
+                    processtrack(con, root, name)
+                    if x % 100 == 0:
                         logmsg('{} mp3 files processed'.format(x))
     logmsg('{} mp3 files processed'.format(x))
     return
 
-def processtrack(con, mpf, root, name):
+def processtrack(con, root, name):
+    mpf = eyed3.load(os.path.join(root, name))
     if mpf is None:
         logmsg("===FOUT=== No ID3: {}".format(os.path.join(root, name)))
         return 
