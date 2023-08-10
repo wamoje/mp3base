@@ -78,7 +78,7 @@ def prepdb(mp3db):
                         artist_id integer NOT NULL,
                         FOREIGN KEY (artist_id) REFERENCES artists (id)
                        ); """
-    album_feat_table_sql = """ CREATE TABLE IF NOY EXISTS album_feat (
+    album_feat_table_sql = """ CREATE TABLE IF NOT EXISTS album_feat (
                             album_id integer NOT NULL,
                             artist_id integer NOT NULL,
                             FOREIGN KEY (album_id) REFERENCES albums (id)
@@ -97,7 +97,7 @@ def prepdb(mp3db):
                         FOREIGN KEY (album_id) REFERENCES albums (id)
                         FOREIGN KEY (artist_id) REFERENCES artists (id)
                        ); """
-    track_feat_table_sql = """ CREATE TABLE IF NOY EXISTS track_feat (
+    track_feat_table_sql = """ CREATE TABLE IF NOT EXISTS track_feat (
                             track_id integer NOT NULL,
                             artist_id integer NOT NULL,
                             FOREIGN KEY (track_id) REFERENCES tracks (id)
@@ -116,26 +116,27 @@ def prepdb(mp3db):
 
 def dirwalk(con, dir):
     x = 0
-    artist_dict = artists_dict(con)
+    create_artist_dict(con)
     for root, dirs, files in os.walk(dir, topdown=True):
         for name in files:
             if '.' in name:
                 if name.rsplit(sep='.', maxsplit=1)[1].upper() == 'MP3':
+                    processtrack(con, root, name)
                     x += 1
-                    processtrack(con, root, name, artist_dict)
                     if x % 100 == 0:
                         logmsg('{} mp3 files processed'.format(x))
     logmsg('{} mp3 files processed'.format(x))
     return
 
-def artists_dict(con):
+def create_artist_dict(con):
+    global ARTIST_DICT
 # get artist names with ids
     c = con.cursor()
     artists = c.execute("SELECT name, id FROM artists;").fetchall()
     logmsg('{} artists written to dictionary'.format(len(artists)))
-    return dict(artists)
+    ARTIST_DICT = dict(artists)
 
-def processtrack(con, root, name, artist_dict):
+def processtrack(con, root, name):
     logmsg("Root: {}".format(root))
     logmsg("Name: {}".format(name))
     mpf = eyed3.load(os.path.join(root, name))
@@ -196,21 +197,20 @@ def processtrack(con, root, name, artist_dict):
 # of one of the suggestions
 
     artist, track_featuring = unfeat_artist(artist)
-    artist = insert_artist(artist, artist_dict, con)
+    artist = insert_artist(artist, con)
     track_feat_corrected = []
     for featuring_artist in track_featuring:
-        featuring_artist = insert_artist(featuring_artist, artist_dict, con)
+        featuring_artist = insert_artist(featuring_artist, con)
         track_feat_corrected.append(featuring_artist)
     albumartist, album_featuring = unfeat_artist(albumartist)
-    albumartist = insert_artist(albumartist, artist_dict, con)
+    albumartist = insert_artist(albumartist, con)
     album_feat_corrected = []
     for featuring_artist in album_featuring:
-        featuring_artist = insert_artist(featuring_artist, artist_dict, con)
+        featuring_artist = insert_artist(featuring_artist, con)
         album_feat_corrected.append(featuring_artist)
-
     c = con.cursor()
 # album
-    albumartistid = artist_dict[albumartist]
+    albumartistid = ARTIST_DICT[albumartist]
     insert_album_sql = ("INSERT INTO albums (title, artist_id) "
                         "SELECT ?, ? "
                         "WHERE NOT EXISTS (SELECT 1 FROM albums WHERE title = ? AND artist_id = ?)")
@@ -221,9 +221,9 @@ def processtrack(con, root, name, artist_dict):
                          "SELECT ?, ? "
                          "WHERE NOT EXISTS (SELECT 1 FROM album_feat WHERE album_id = ? AND artist_id = ?)")
     for f_artist in album_feat_corrected:
-        c.execute(insert_album_feat, (albumid, artist_dict[f_artist]) * 2) 
+        c.execute(insert_album_feat, (albumid, ARTIST_DICT[f_artist]) * 2) 
 # track
-    artistid = artist_dict[artist]
+    artistid = ARTIST_DICT[artist]
     insert_track_sql = ("INSERT INTO tracks (title, album_id, artist_id, tracknum, bytes, seconds, disc) "
                         "SELECT ?, ?, ?, ?, ?, ?, ? "
                         "WHERE NOT EXISTS (SELECT 1 FROM tracks WHERE title = ? AND album_id = ? AND artist_id = ? AND disc = ?)")
@@ -234,7 +234,7 @@ def processtrack(con, root, name, artist_dict):
                          "SELECT ?, ? "
                          "WHERE NOT EXISTS (SELECT 1 FROM track_feat WHERE track_id = ? AND artist_id = ?)")
     for f_artist in track_feat_corrected:
-        c.execute(insert_track_feat, (trackid, artist_dict[f_artist]) * 2) 
+        c.execute(insert_track_feat, (trackid, ARTIST_DICT[f_artist]) * 2) 
     con.commit()        # Commit on each processed track
     return
 
@@ -258,40 +258,57 @@ def finddiscpath(root):
     return '0000', '/'       # not a familiar path structure
 
 def unfeat_artist(artist):
+    global OLD_FEATURED_ARTIST
+    global OLD_UNFEATURED_ARTIST
+    global OLD_FEATURINGS
 # Unfeat artist, which means: separate artist from featuring artist(s)
 # Routine to split artist from featuring artists and featuring artists from
 # each other. Done with dialog.
+    print('Artist in album/track:')
     print('>>>{}<<<'.format(artist))
     L = []  #Start with assumption of no featuring artists
-    if not 'feat' in artist.lower():
+    if (not 'feat' in artist.lower() and 
+        not ' with ' in artist.lower() and
+        not ' and ' in artist.lower() and
+        not ' & ' in artist.lower() 
+       ):
         return artist, L
+    
+    if artist == OLD_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
+        return OLD_UNFEATURED_ARTIST, OLD_FEATURINGS
+    
+    OLD_FEATURED_ARTIST = artist
     artist = input('Enter artist without "Featuring Artists": ')
+    OLD_UNFEATURED_ARTIST = artist
     while True:
         print('Enter one featuring artist name')
         answer = input('>>>> OR "d" for done: ')
         if answer == 'd':
             break
         L.append(answer)
+    OLD_FEATURINGS = L[:] # create a copy
     return artist, L
 
-def insert_artist(artist, artist_dict, con):
-    if artist in artist_dict: # artist already in db
-        return
-    artist = correct_artist(artist, artist_dict) # Check if it is really a new artist or a typo
-    if artist in artist_dict: # artist already in db
-        return
+def insert_artist(artist, con):
+    global ARTIST_DICT
+    if artist in ARTIST_DICT: # artist already in db
+        return artist
+    artist = correct_artist(artist) # Check if it is really a new artist or a typo
+    if artist in ARTIST_DICT: # artist already in db
+        return artist
     c = con.cursor()
     insert_artist_sql = ("INSERT INTO artists (name) "
                         "SELECT ? "
                         "WHERE NOT EXISTS (SELECT 1 FROM artists WHERE name = ?)")
     c.execute(insert_artist_sql, (artist, artist))
     artistid = c.lastrowid
-    artist_dict[artist] = artistid
+    ARTIST_DICT[artist] = artistid
+    return artist
 
-def correct_artist(artist, artist_dict):
+def correct_artist(artist):
     print('Artist: {}'.format(artist))
     print('No artist with this exact name found in the database.')
-    like_list = difflib.get_close_matches(artist, list(artist_dict), n=5, cutoff=0.7)
+    like_list = difflib.get_close_matches(artist, list(ARTIST_DICT), n=5, cutoff=0.7)
     print('Do you want to: (Enter the letter in brackets to choose)')
     print('(u) Use {}'.format(artist))
     x = 0
@@ -322,21 +339,22 @@ def showcounts(con):
     tracks = c.execute("SELECT COUNT(1) FROM tracks ;").fetchone()[0]
     logmsg("Number of artists: {}, albums: {}, tracks: {}".format(artists, albums, tracks))
 
-def main():
-    logging.basicConfig(filename='mp3base.log', 
-                        format='%(asctime)s %(levelname)s:%(message)s', 
-                        level=logging.DEBUG)
-    eyed3.log.setLevel("ERROR")
-    mp3dir, mp3db = getargs()
-    con = prepdb(mp3db)
-    if con:
-        logmsg("Counts at start:")
-        showcounts(con)
-        dirwalk(con, mp3dir)
-        con.commit()
-        logmsg("Counts at end:")
-        showcounts(con)
-        con.close()
+ARTIST_DICT = {}
+OLD_FEATURED_ARTIST = 'No album processed yet'
+OLD_UNFEATURED_ARTIST = ''
+OLD_FEATURINGS = []
 
-if __name__ == "__main__":
-    main()
+logging.basicConfig(filename='mp3base.log', 
+                    format='%(asctime)s %(levelname)s:%(message)s', 
+                    level=logging.DEBUG)
+eyed3.log.setLevel("ERROR")
+mp3dir, mp3db = getargs()
+con = prepdb(mp3db)
+if con:
+    logmsg("Counts at start:")
+    showcounts(con)
+    dirwalk(con, mp3dir)
+    con.commit()
+    logmsg("Counts at end:")
+    showcounts(con)
+    con.close()
