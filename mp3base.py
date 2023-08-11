@@ -123,8 +123,7 @@ def dirwalk(con, dir):
                 if name.rsplit(sep='.', maxsplit=1)[1].upper() == 'MP3':
                     processtrack(con, root, name)
                     x += 1
-                    if x % 100 == 0:
-                        logmsg('{} mp3 files processed'.format(x))
+                    print('\n'*3, '*'*8, '{} tracks processed this run'.format(x), '*'*8)
     logmsg('{} mp3 files processed'.format(x))
     return
 
@@ -258,9 +257,9 @@ def finddiscpath(root):
     return '0000', '/'       # not a familiar path structure
 
 def unfeat_artist(artist):
-    global OLD_FEATURED_ARTIST
-    global OLD_UNFEATURED_ARTIST
-    global OLD_FEATURINGS
+    global LAST_FEATURED_ARTIST
+    global LAST_UNFEATURED_ARTIST
+    global LAST_FEATURINGS
 # Unfeat artist, which means: separate artist from featuring artist(s)
 # Routine to split artist from featuring artists and featuring artists from
 # each other. Done with dialog.
@@ -274,22 +273,26 @@ def unfeat_artist(artist):
        ):
         return artist, L
     
-    if artist == OLD_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
-        return OLD_UNFEATURED_ARTIST, OLD_FEATURINGS
+    if artist == LAST_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
+        return LAST_UNFEATURED_ARTIST, LAST_FEATURINGS
     
-    OLD_FEATURED_ARTIST = artist
+    LAST_FEATURED_ARTIST = artist
     artist = input('Enter artist without "Featuring Artists": ')
-    OLD_UNFEATURED_ARTIST = artist
+    LAST_UNFEATURED_ARTIST = artist
     while True:
         print('Enter one featuring artist name')
         answer = input('>>>> OR "d" for done: ')
         if answer == 'd':
             break
         L.append(answer)
-    OLD_FEATURINGS = L[:] # create a copy
+    LAST_FEATURINGS = L[:] # create a copy
     return artist, L
 
 def insert_artist(artist, con):
+    if artist.lower().startswith('the '):
+        artist = artist[4:]
+    if artist.lower().startswith('de '): #Dutch 'the'
+        artist = artist[3:]
     global ARTIST_DICT
     if artist in ARTIST_DICT: # artist already in db
         return artist
@@ -311,10 +314,13 @@ def correct_artist(artist):
     like_list = difflib.get_close_matches(artist, list(ARTIST_DICT), n=5, cutoff=0.7)
     print('Do you want to: (Enter the letter in brackets to choose)')
     print('(u) Use {}'.format(artist))
-    x = 0
-    for l_artist in like_list:
-        print('({}) Use {}'.format(chr(x+97), l_artist))
-    print('(t) Type the artistname')
+    if len(like_list) > 0:
+        print('Suggestions from existing artists:')
+        x = 0
+        for l_artist in like_list:
+            print('   ({}) Use {}'.format(chr(x+97), l_artist))
+            x = x + 1
+    print('or (t) Type the artistname')
     keuze = input()
     if keuze == 'u':
         return artist
@@ -340,9 +346,9 @@ def showcounts(con):
     logmsg("Number of artists: {}, albums: {}, tracks: {}".format(artists, albums, tracks))
 
 ARTIST_DICT = {}
-OLD_FEATURED_ARTIST = 'No album processed yet'
-OLD_UNFEATURED_ARTIST = ''
-OLD_FEATURINGS = []
+LAST_FEATURED_ARTIST = ''
+LAST_UNFEATURED_ARTIST = ''
+LAST_FEATURINGS = []
 
 logging.basicConfig(filename='mp3base.log', 
                     format='%(asctime)s %(levelname)s:%(message)s', 
