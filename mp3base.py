@@ -263,15 +263,23 @@ def unfeat_artist(artist):
 # Unfeat artist, which means: separate artist from featuring artist(s)
 # Routine to split artist from featuring artists and featuring artists from
 # each other. Done with dialog.
+    L = []  #Start with assumption of no featuring artists
+    if artist.lower().startswith('the '):
+        artist = artist[4:]
+    if artist.lower().startswith('de '): #Dutch 'the'
+        artist = artist[3:]
+    if artist in ARTIST_DICT:
+            return artist, L
     print('Artist in album/track:')
     print('>>>{}<<<'.format(artist))
-    L = []  #Start with assumption of no featuring artists
     if (not 'feat' in artist.lower() and 
         not ' with ' in artist.lower() and
         not ' and ' in artist.lower() and
         not ' & ' in artist.lower() 
        ):
-        return artist, L
+        answer = input('Split in artist and featurings? y/n: ')
+        if answer == 'n':
+            return artist, L
     
     if artist == LAST_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
         return LAST_UNFEATURED_ARTIST, LAST_FEATURINGS
@@ -289,11 +297,11 @@ def unfeat_artist(artist):
     return artist, L
 
 def insert_artist(artist, con):
+    global ARTIST_DICT
     if artist.lower().startswith('the '):
         artist = artist[4:]
     if artist.lower().startswith('de '): #Dutch 'the'
         artist = artist[3:]
-    global ARTIST_DICT
     if artist in ARTIST_DICT: # artist already in db
         return artist
     artist = correct_artist(artist) # Check if it is really a new artist or a typo
