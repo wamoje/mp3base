@@ -137,7 +137,7 @@ def create_artist_dict(con):
 
 def processtrack(con, root, name):
     logmsg("Root: {}".format(root))
-    logmsg("Name: {}".format(name))
+    logmsg("File: {}".format(name))
     mpf = eyed3.load(os.path.join(root, name))
     if mpf is None:
         logmsg("===FOUT=== No ID3: {}".format(os.path.join(root, name)))
@@ -153,6 +153,8 @@ def processtrack(con, root, name):
         return
     else:
         artist = artist.strip()
+    print("\n\n\n", "="*30)
+    logmsg("****    Trackartist: {}    ****".format(artist))
     album = mpf.tag.album
     if album is None:
         logmsg("===FOUT=== No album, skipped: {}".format(os.path.join(root, name)))
@@ -160,7 +162,7 @@ def processtrack(con, root, name):
         return
     else:
         album = album.strip()
-    logmsg("Album: {}".format(album))
+    logmsg("****    Album: {}    ****".format(album))
     albumartist = mpf.tag.album_artist
     if albumartist is None:
         logmsg("===FOUT=== No albumartist, skipped: {}".format(os.path.join(root, name)))
@@ -168,6 +170,7 @@ def processtrack(con, root, name):
         return
     else:
         albumartist = albumartist.strip()
+    logmsg("****    Albumartist: {}    ****".format(albumartist))
     track = mpf.tag.title
     if track is None:
         logmsg("===FOUT=== No tracktitle, skipped: {}".format(os.path.join(root, name)))
@@ -178,7 +181,7 @@ def processtrack(con, root, name):
         if len(track) == 0:
             logmsg("===FOUT=== Blank tracktitle, skipped: {}".format(os.path.join(root, name)))
             track = 'Unknown'
-    logmsg("Track: {}".format(track))
+    logmsg("****    Tracktitle: {}    ****".format(track))
     tracknum = mpf.tag.track_num[0]
     if mpf.info is None:
         logmsg("===FOUT=== No info in ID3: {}".format(os.path.join(root, name)))
@@ -271,7 +274,7 @@ def unfeat_artist(artist):
     if artist in ARTIST_DICT:
             return artist, L
     print('Artist in album/track:')
-    print('>>>{}<<<'.format(artist))
+    print('>>> {} <<<'.format(artist))
     if (not 'feat' in artist.lower() and 
         not ' with ' in artist.lower() and
         not ' and ' in artist.lower() and
@@ -318,17 +321,17 @@ def insert_artist(artist, con):
 
 def correct_artist(artist):
     print('Artist: {}'.format(artist))
-    print('No artist with this exact name found in the database.')
+    print('\n !!! No artist with this exact name found in the database.')
     like_list = difflib.get_close_matches(artist, list(ARTIST_DICT), n=5, cutoff=0.7)
-    print('Do you want to: (Enter the letter in brackets to choose)')
-    print('(u) Use {}'.format(artist))
+    print('     Do you want to: (Enter the letter in brackets to choose)')
+    print('     (u) Use {}'.format(artist))
     if len(like_list) > 0:
         print('Suggestions from existing artists:')
         x = 0
         for l_artist in like_list:
-            print('   ({}) Use {}'.format(chr(x+97), l_artist))
+            print('     ({}) Use {}'.format(chr(x+97), l_artist))
             x = x + 1
-    print('or (t) Type the artistname')
+    print('  or (t) Type the artistname')
     keuze = input()
     if keuze == 'u':
         return artist
