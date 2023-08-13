@@ -136,6 +136,7 @@ def create_artist_dict(con):
     ARTIST_DICT = dict(artists)
 
 def processtrack(con, root, name):
+    print("\n\n\n"+("="*50))
     logmsg("Root: {}".format(root))
     logmsg("File: {}".format(name))
     mpf = eyed3.load(os.path.join(root, name))
@@ -153,7 +154,6 @@ def processtrack(con, root, name):
         return
     else:
         artist = artist.strip()
-    print("\n\n\n", "="*30)
     logmsg("****    Trackartist: {}    ****".format(artist))
     album = mpf.tag.album
     if album is None:
@@ -280,7 +280,7 @@ def unfeat_artist(artist):
         not ' and ' in artist.lower() and
         not ' & ' in artist.lower() 
        ):
-        answer = input('Split in artist and featurings? y/n: ')
+        answer = input('\nSplit in artist and featurings? y/n: ')
         if answer == 'n':
             return artist, L
     
@@ -288,7 +288,7 @@ def unfeat_artist(artist):
         return LAST_UNFEATURED_ARTIST, LAST_FEATURINGS
     
     LAST_FEATURED_ARTIST = artist
-    artist = input('Enter artist without "Featuring Artists": ')
+    artist = input('\nEnter artist without "Featuring Artists": ')
     LAST_UNFEATURED_ARTIST = artist
     while True:
         print('Enter one featuring artist name')
@@ -321,7 +321,7 @@ def insert_artist(artist, con):
 
 def correct_artist(artist):
     print('Artist: {}'.format(artist))
-    print('\n !!! No artist with this exact name found in the database.')
+    print('\n!!! No artist with this exact name found in the database.')
     like_list = difflib.get_close_matches(artist, list(ARTIST_DICT), n=5, cutoff=0.7)
     print('     Do you want to: (Enter the letter in brackets to choose)')
     print('     (u) Use {}'.format(artist))
