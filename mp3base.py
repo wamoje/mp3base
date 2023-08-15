@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+#### TODO  soms albumid = 0 (houdt verband met lastrowid wschlk)
+
 import os
 import sys
 import logging
@@ -55,7 +57,7 @@ def connectdb(mp3db):
         logmsg(e)    
     return con
 
-def createtable(con, tablesql):
+def create_db_object(con, tablesql):
     """ create a table from the create_table_sql statement
     :param conn: Connection object
     :param create_table_sql: a CREATE TABLE statement
@@ -70,17 +72,20 @@ def createtable(con, tablesql):
 def prepdb(mp3db):
     artists_table_sql = """ CREATE TABLE IF NOT EXISTS artists (
                          id integer PRIMARY KEY,
-                         name text NOT NULL
+                         name text NOT NULL UNIQUE
+
                         ); """
     albums_table_sql = """ CREATE TABLE IF NOT EXISTS albums (
                         id integer PRIMARY KEY,
                         title text NOT NULL,
                         artist_id integer NOT NULL,
+                        UNIQUE (title, artist_id),
                         FOREIGN KEY (artist_id) REFERENCES artists (id)
                        ); """
     album_feat_table_sql = """ CREATE TABLE IF NOT EXISTS album_feat (
                             album_id integer NOT NULL,
                             artist_id integer NOT NULL,
+                            UNIQUE (album_id, artist_id),
                             FOREIGN KEY (album_id) REFERENCES albums (id)
                             FOREIGN KEY (artist_id) REFERENCES artists (id)
                            ); """
@@ -94,22 +99,24 @@ def prepdb(mp3db):
                         seconds integer,
                         disc text,
                         path text,
+                        UNIQUE(title, album_id, artist_id, disc),
                         FOREIGN KEY (album_id) REFERENCES albums (id)
                         FOREIGN KEY (artist_id) REFERENCES artists (id)
                        ); """
     track_feat_table_sql = """ CREATE TABLE IF NOT EXISTS track_feat (
                             track_id integer NOT NULL,
                             artist_id integer NOT NULL,
+                            UNIQUE (track_id, artist_id),
                             FOREIGN KEY (track_id) REFERENCES tracks (id)
                             FOREIGN KEY (artist_id) REFERENCES artists (id)
                            ); """
     con = connectdb(mp3db)
     if con is not None:
-        createtable(con, artists_table_sql)
-        createtable(con, albums_table_sql)
-        createtable(con, album_feat_table_sql)
-        createtable(con, tracks_table_sql)
-        createtable(con, track_feat_table_sql)
+        create_db_object(con, artists_table_sql)
+        create_db_object(con, albums_table_sql)
+        create_db_object(con, album_feat_table_sql)
+        create_db_object(con, tracks_table_sql)
+        create_db_object(con, track_feat_table_sql)
     else:
         logmsg("Error! cannot create the database connection.")
     return con
@@ -216,27 +223,29 @@ def processtrack(con, root, name):
     insert_album_sql = ("INSERT INTO albums (title, artist_id) "
                         "SELECT ?, ? "
                         "WHERE NOT EXISTS (SELECT 1 FROM albums WHERE title = ? AND artist_id = ?)")
-    c.execute(insert_album_sql, (album, albumartistid) * 2)
-    albumid = c.lastrowid
+    c.execute(insert_album_sql, (album, albumartistid, album, albumartistid))
+    albumid = c.execute("SELECT id FROM albums WHERE title = ? AND artist_id = ?;", (album, albumartistid)).fetchone()[0]
+
 ## Add NtoN relations between album and featuring artists
     insert_album_feat = ("INSERT INTO album_feat (album_id, artist_id) "
                          "SELECT ?, ? "
                          "WHERE NOT EXISTS (SELECT 1 FROM album_feat WHERE album_id = ? AND artist_id = ?)")
     for f_artist in album_feat_corrected:
-        c.execute(insert_album_feat, (albumid, ARTIST_DICT[f_artist]) * 2) 
+        c.execute(insert_album_feat, (albumid, ARTIST_DICT[f_artist], albumid, ARTIST_DICT[f_artist])) 
 # track
     artistid = ARTIST_DICT[artist]
     insert_track_sql = ("INSERT INTO tracks (title, album_id, artist_id, tracknum, bytes, seconds, disc) "
                         "SELECT ?, ?, ?, ?, ?, ?, ? "
                         "WHERE NOT EXISTS (SELECT 1 FROM tracks WHERE title = ? AND album_id = ? AND artist_id = ? AND disc = ?)")
     c.execute(insert_track_sql, (track, albumid, artistid, tracknum, bytes, seconds, disc, track, albumid, artistid, disc))
-    trackid = c.lastrowid
+    trackid = c.execute("SELECT id FROM tracks WHERE title = ? AND album_id = ? AND artist_id = ? AND disc = ?;",
+                        (track, albumid, artistid, disc)).fetchone()[0]
 ## Add NtoN relations between track and featuring artists
     insert_track_feat = ("INSERT INTO track_feat (track_id, artist_id) "
                          "SELECT ?, ? "
                          "WHERE NOT EXISTS (SELECT 1 FROM track_feat WHERE track_id = ? AND artist_id = ?)")
     for f_artist in track_feat_corrected:
-        c.execute(insert_track_feat, (trackid, ARTIST_DICT[f_artist]) * 2) 
+        c.execute(insert_track_feat, (trackid, ARTIST_DICT[f_artist], trackid, ARTIST_DICT[f_artist])) 
     con.commit()        # Commit on each processed track
     return
 
@@ -281,7 +290,7 @@ def unfeat_artist(artist):
         not ' & ' in artist.lower() 
        ):
         answer = input('\nSplit in artist and featurings? y/n: ')
-        if answer == 'n':
+        if not answer == 'y':
             return artist, L
     
     if artist == LAST_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
@@ -315,7 +324,7 @@ def insert_artist(artist, con):
                         "SELECT ? "
                         "WHERE NOT EXISTS (SELECT 1 FROM artists WHERE name = ?)")
     c.execute(insert_artist_sql, (artist, artist))
-    artistid = c.lastrowid
+    artistid = c.execute("SELECT id FROM artists WHERE name = ? ;", (artist, )).fetchone()[0]
     ARTIST_DICT[artist] = artistid
     return artist
 
