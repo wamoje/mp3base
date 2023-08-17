@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#### TODO  soms albumid = 0 (houdt verband met lastrowid wschlk)
+###TODOOOOO   main() weer invoeren?
 
 import os
 import sys
@@ -284,29 +284,144 @@ def unfeat_artist(artist):
             return artist, L
     print('Artist in album/track:')
     print('>>> {} <<<'.format(artist))
-    if (not 'feat' in artist.lower() and 
-        not ' with ' in artist.lower() and
-        not ' and ' in artist.lower() and
-        not ' & ' in artist.lower() 
+
+# Split automated?
+    if ('feat' in artist.lower() or 
+        ' with ' in artist.lower() or
+        ' and ' in artist.lower() or
+        ' & ' in artist.lower() or
+        ' + ' in artist.lower() or
+        ',' in artist.lower()
        ):
-        answer = input('\nSplit in artist and featurings? y/n: ')
-        if not answer == 'y':
-            return artist, L
+        as_artist, as_L = autosplit(artist)
+        print("\n\nEnter 'u' to use suggested split (You'll be able to correct individual typo's later)")
+        print("Not entering 'u' will lead you into the manual splitting process")
+        answer = input().lower()
+        if answer == "u":
+            LAST_FEATURED_ARTIST = artist
+            LAST_UNFEATURED_ARTIST = as_artist
+            LAST_FEATURINGS = as_L[:]
+            return as_artist, as_L
+
+    answer = input('\nSplit in artist and featurings? y/n: ').lower()
+    if not answer == 'y':
+        return artist, L
     
     if artist == LAST_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
         return LAST_UNFEATURED_ARTIST, LAST_FEATURINGS
     
     LAST_FEATURED_ARTIST = artist
+
+# Split manually    
     artist = input('\nEnter artist without "Featuring Artists": ')
     LAST_UNFEATURED_ARTIST = artist
     while True:
         print('Enter one featuring artist name')
         answer = input('>>>> OR "d" for done: ')
-        if answer == 'd':
+        if answer == 'd' or answer == 'D':
             break
         L.append(answer)
     LAST_FEATURINGS = L[:] # create a copy
     return artist, L
+
+def autosplit(artist):
+    L = artist.split('Featuring')
+    L3 = []
+    for part in L:
+        L2 = part.split('featuring')
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split('FEATURING')
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split('FEAT ')
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split('Feat ')
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split('feat ')
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split('feat.')
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split('Feat.')
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split("FEAT.")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split("&")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split("+")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(",")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" and ")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" AND ")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" And ")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" with ")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" WITH ")
+        L3.extend(L2)
+    L2 = [part.strip() for part in L3]
+    L = []
+    for i in range(len(L2)):
+        if L2[i].lower().startswith('the '):
+            L.append(L2[i][4:])
+        elif L2[i].lower().startswith('de '):
+            L.append(L2[i][3:])
+        else:
+            L.append(L2[i])
+
+    print("\n**Split suggestion**")
+    print("\nMain artist:")
+    print("\t"+L[0])
+    print("Featuring artist(s):")
+    for feat_art in L[1:]:
+        print("\t"+feat_art)
+    return L[0], L[1:]
 
 def insert_artist(artist, con):
     global ARTIST_DICT
@@ -341,7 +456,7 @@ def correct_artist(artist):
             print('     ({}) Use {}'.format(chr(x+97), l_artist))
             x = x + 1
     print('  or (t) Type the artistname')
-    keuze = input()
+    keuze = input().lower()
     if keuze == 'u':
         return artist
     if keuze == 't':
@@ -351,7 +466,7 @@ def correct_artist(artist):
         if ord(keuze) < 97 or ord(keuze) > 96+len(like_list):
             print('Wrong choice, use one of the suggested letters for the alternatives.')
             print('(or you might use "u" to use the default artist)')
-            input(keuze)
+            input(keuze).lower()
         else:
             break
         if keuze == 'u':
