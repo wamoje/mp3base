@@ -130,7 +130,6 @@ def dirwalk(con, dir):
                 if name.rsplit(sep='.', maxsplit=1)[1].upper() == 'MP3':
                     processtrack(con, root, name)
                     x += 1
-                    print('\n'*3, '*'*8, '{} tracks processed this run'.format(x), '*'*8)
     logmsg('{} mp3 files processed'.format(x))
     return
 
@@ -282,18 +281,27 @@ def unfeat_artist(artist):
         artist = artist[3:]
     if artist in ARTIST_DICT:
             return artist, L
+    if artist == LAST_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
+        return LAST_UNFEATURED_ARTIST, LAST_FEATURINGS
+    
     print('Artist in album/track:')
     print('>>> {} <<<'.format(artist))
-
 # Split automated?
     if ('feat' in artist.lower() or 
+        ' ft. ' in artist.lower() or
         ' with ' in artist.lower() or
         ' and ' in artist.lower() or
+        ' guest ' in artist.lower() or
         ' & ' in artist.lower() or
         ' + ' in artist.lower() or
         ',' in artist.lower()
        ):
         as_artist, as_L = autosplit(artist)
+
+        ## if all artists in suggested split are known, the split is probably correct
+        if as_artist in ARTIST_DICT and set(as_L).issubset(set(ARTIST_DICT.keys())):
+            return as_artist, as_L
+        ## else ask user
         print("\n\nEnter 'u' to use suggested split (You'll be able to correct individual typo's later)")
         print("Not entering 'u' will lead you into the manual splitting process")
         answer = input().lower()
@@ -306,9 +314,6 @@ def unfeat_artist(artist):
     answer = input('\nSplit in artist and featurings? y/n: ').lower()
     if not answer == 'y':
         return artist, L
-    
-    if artist == LAST_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
-        return LAST_UNFEATURED_ARTIST, LAST_FEATURINGS
     
     LAST_FEATURED_ARTIST = artist
 
@@ -368,6 +373,11 @@ def autosplit(artist):
     L = L3[:]
     L3 = []
     for part in L:
+        L2 = part.split(" ft.")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
         L2 = part.split("&")
         L3.extend(L2)
     L = L3[:]
@@ -404,6 +414,21 @@ def autosplit(artist):
     L3 = []
     for part in L:
         L2 = part.split(" WITH ")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" guest ")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" Guest ")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" GUEST ")
         L3.extend(L2)
     L2 = [part.strip() for part in L3]
     L = []
@@ -463,7 +488,7 @@ def correct_artist(artist):
         artist = input('Enter artist name: ')
         return artist
     while True:
-        if ord(keuze) < 97 or ord(keuze) > 96+len(like_list):
+        if len(keuze) != 1 or ord(keuze) < 97 or ord(keuze) > 96+len(like_list):
             print('Wrong choice, use one of the suggested letters for the alternatives.')
             print('(or you might use "u" to use the default artist)')
             input(keuze).lower()
