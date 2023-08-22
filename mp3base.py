@@ -130,6 +130,7 @@ def dirwalk(con, dir):
                 if name.rsplit(sep='.', maxsplit=1)[1].upper() == 'MP3':
                     processtrack(con, root, name)
                     x += 1
+                    print('\n\n'+'='*15+'>>> Track {} <<<'.format(x)+'='*15)
     logmsg('{} mp3 files processed'.format(x))
     return
 
@@ -142,7 +143,7 @@ def create_artist_dict(con):
     ARTIST_DICT = dict(artists)
 
 def processtrack(con, root, name):
-    print("\n\n\n"+("="*50))
+    print("\n"+("-"*40))
     logmsg("Root: {}".format(root))
     logmsg("File: {}".format(name))
     mpf = eyed3.load(os.path.join(root, name))
@@ -279,6 +280,8 @@ def unfeat_artist(artist):
         artist = artist[4:]
     if artist.lower().startswith('de '): #Dutch 'the'
         artist = artist[3:]
+    if artist.lower().endswith(', the'):
+        artist = artist[:-5]
     if artist in ARTIST_DICT:
             return artist, L
     if artist == LAST_FEATURED_ARTIST:  # Don't repeat old 'splitting' dialog but reuse
@@ -288,12 +291,12 @@ def unfeat_artist(artist):
     print('>>> {} <<<'.format(artist))
 # Split automated?
     if ('feat' in artist.lower() or 
-        ' ft. ' in artist.lower() or
+        ' ft.' in artist.lower() or
         ' with ' in artist.lower() or
         ' and ' in artist.lower() or
         ' guest ' in artist.lower() or
-        ' & ' in artist.lower() or
-        ' + ' in artist.lower() or
+        '&' in artist.lower() or
+        '+' in artist.lower() or
         ',' in artist.lower()
        ):
         as_artist, as_L = autosplit(artist)
@@ -374,6 +377,11 @@ def autosplit(artist):
     L3 = []
     for part in L:
         L2 = part.split(" ft.")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" Ft.")
         L3.extend(L2)
     L = L3[:]
     L3 = []
@@ -469,6 +477,21 @@ def insert_artist(artist, con):
     return artist
 
 def correct_artist(artist):
+    """    Case insensitive close match
+    def get_close_matches_icase(word, possibilities, *args, **kwargs):
+    --- Case-insensitive version of difflib.get_close_matches ---
+    lword = word.lower()
+    lpos = {}
+    for p in possibilities:
+        if p.lower() not in lpos:
+            lpos[p.lower()] = [p]
+        else:
+            lpos[p.lower()].append(p)
+    lmatches = difflib.get_close_matches(lword, lpos.keys(), *args, **kwargs)
+    ret = [lpos[m] for m in lmatches]
+    ret = itertools.chain.from_iterable(ret)
+    return set(ret)
+    """
     print('Artist: {}'.format(artist))
     print('\n!!! No artist with this exact name found in the database.')
     like_list = difflib.get_close_matches(artist, list(ARTIST_DICT), n=5, cutoff=0.7)
