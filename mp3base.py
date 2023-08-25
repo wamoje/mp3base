@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-###TODOOOOO   main() weer invoeren?
+###TODOOOOO   main() weer invoeren?   &    path
 
 import os
 import sys
@@ -99,6 +99,7 @@ def prepdb(mp3db):
                         seconds integer,
                         disc text,
                         path text,
+                        file text,
                         UNIQUE(title, album_id, artist_id, disc),
                         FOREIGN KEY (album_id) REFERENCES albums (id)
                         FOREIGN KEY (artist_id) REFERENCES artists (id)
@@ -234,10 +235,10 @@ def processtrack(con, root, name):
         c.execute(insert_album_feat, (albumid, ARTIST_DICT[f_artist], albumid, ARTIST_DICT[f_artist])) 
 # track
     artistid = ARTIST_DICT[artist]
-    insert_track_sql = ("INSERT INTO tracks (title, album_id, artist_id, tracknum, bytes, seconds, disc) "
-                        "SELECT ?, ?, ?, ?, ?, ?, ? "
+    insert_track_sql = ("INSERT INTO tracks (title, album_id, artist_id, tracknum, bytes, seconds, disc, path, file) "
+                        "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?"
                         "WHERE NOT EXISTS (SELECT 1 FROM tracks WHERE title = ? AND album_id = ? AND artist_id = ? AND disc = ?)")
-    c.execute(insert_track_sql, (track, albumid, artistid, tracknum, bytes, seconds, disc, track, albumid, artistid, disc))
+    c.execute(insert_track_sql, (track, albumid, artistid, tracknum, bytes, seconds, disc, path, name, track, albumid, artistid, disc))
     trackid = c.execute("SELECT id FROM tracks WHERE title = ? AND album_id = ? AND artist_id = ? AND disc = ?;",
                         (track, albumid, artistid, disc)).fetchone()[0]
 ## Add NtoN relations between track and featuring artists
@@ -291,7 +292,7 @@ def unfeat_artist(artist):
     print('>>> {} <<<'.format(artist))
 # Split automated?
     if ('feat' in artist.lower() or 
-        ' ft.' in artist.lower() or
+        ' ft' in artist.lower() or
         ' with ' in artist.lower() or
         ' and ' in artist.lower() or
         ' guest ' in artist.lower() or
@@ -377,6 +378,11 @@ def autosplit(artist):
     L3 = []
     for part in L:
         L2 = part.split(" ft.")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
+        L2 = part.split(" ft ")
         L3.extend(L2)
     L = L3[:]
     L3 = []
@@ -514,7 +520,7 @@ def correct_artist(artist):
         if len(keuze) != 1 or ord(keuze) < 97 or ord(keuze) > 96+len(like_list):
             print('Wrong choice, use one of the suggested letters for the alternatives.')
             print('(or you might use "u" to use the default artist)')
-            input(keuze).lower()
+            keuze = input().lower()
         else:
             break
         if keuze == 'u':
