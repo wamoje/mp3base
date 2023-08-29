@@ -9,6 +9,7 @@ import eyed3
 import sqlite3
 from sqlite3 import Error
 import difflib
+import itertools
 
 def getargs():
     if '-h' in sys.argv:
@@ -298,6 +299,7 @@ def unfeat_artist(artist):
         ' guest ' in artist.lower() or
         '&' in artist.lower() or
         '+' in artist.lower() or
+        '/' in artist.lower() or
         ',' in artist.lower()
        ):
         as_artist, as_L = autosplit(artist)
@@ -402,6 +404,11 @@ def autosplit(artist):
     L = L3[:]
     L3 = []
     for part in L:
+        L2 = part.split("/")
+        L3.extend(L2)
+    L = L3[:]
+    L3 = []
+    for part in L:
         L2 = part.split(",")
         L3.extend(L2)
     L = L3[:]
@@ -483,24 +490,9 @@ def insert_artist(artist, con):
     return artist
 
 def correct_artist(artist):
-    """    Case insensitive close match
-    def get_close_matches_icase(word, possibilities, *args, **kwargs):
-    --- Case-insensitive version of difflib.get_close_matches ---
-    lword = word.lower()
-    lpos = {}
-    for p in possibilities:
-        if p.lower() not in lpos:
-            lpos[p.lower()] = [p]
-        else:
-            lpos[p.lower()].append(p)
-    lmatches = difflib.get_close_matches(lword, lpos.keys(), *args, **kwargs)
-    ret = [lpos[m] for m in lmatches]
-    ret = itertools.chain.from_iterable(ret)
-    return set(ret)
-    """
     print('Artist: {}'.format(artist))
     print('\n!!! No artist with this exact name found in the database.')
-    like_list = difflib.get_close_matches(artist, list(ARTIST_DICT), n=5, cutoff=0.7)
+    like_list = match_caseless(artist, list(ARTIST_DICT), n=5, cutoff=0.6)
     print('     Do you want to: (Enter the letter in brackets to choose)')
     print('     (u) Use {}'.format(artist))
     if len(like_list) > 0:
@@ -526,6 +518,20 @@ def correct_artist(artist):
         if keuze == 'u':
             return(artist)
     return(like_list[ord(keuze)-97])
+
+def match_caseless(word, possibilities, *args, **kwargs):
+    """ Case-insensitive version of difflib.get_close_matches """
+    lword = word.lower()
+    lpos = {}
+    for p in possibilities:
+        if p.lower() not in lpos:
+            lpos[p.lower()] = [p]
+        else:
+            lpos[p.lower()].append(p)
+    lmatches = difflib.get_close_matches(lword, lpos.keys(), *args, **kwargs)
+    ret = [lpos[m] for m in lmatches]
+    ret = itertools.chain.from_iterable(ret)
+    return list(set(ret))
 
 def showcounts(con):
     c = con.cursor()
