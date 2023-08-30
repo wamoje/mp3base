@@ -336,138 +336,29 @@ def unfeat_artist(artist):
     return artist, L
 
 def autosplit(artist):
-    L = artist.split('Featuring')
-    L3 = []
-    for part in L:
-        L2 = part.split('featuring')
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split('FEATURING')
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split('FEAT ')
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split('Feat ')
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split('feat ')
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split('feat.')
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split('Feat.')
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split("FEAT.")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" ft.")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" ft ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" Ft.")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split("&")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split("+")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split("/")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(",")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" and ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" AND ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" And ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" with ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" WITH ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" guest ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" Guest ")
-        L3.extend(L2)
-    L = L3[:]
-    L3 = []
-    for part in L:
-        L2 = part.split(" GUEST ")
-        L3.extend(L2)
-    L2 = [part.strip() for part in L3]
-    L = []
-    for i in range(len(L2)):
-        if L2[i].lower().startswith('the '):
-            L.append(L2[i][4:])
-        elif L2[i].lower().startswith('de '):
-            L.append(L2[i][3:])
-        else:
-            L.append(L2[i])
+    splitlist = ['Featuring', 'featuring', 'FEATURING',
+                 'FEAT ', 'Feat ', 'FEAT.', 'Feat.', 'feat ', 'feat.',
+                 " ft ", " ft.", " Ft ", " Ft.",
+                 " and ", " And ", " AND ",
+                 " with ", " With ", " WITH ",
+                 "&", "+", ",", "/"
+                 ]
+    L1 = [ artist ]
+    for splitter in splitlist:
+        L3 = []
+        for part in L1:
+            L2 = part.split(splitter)
+            L3.extend(L2)
+        L1 = L3[:]
+    L1 = [part.strip() for part in L3]
 
     print("\n**Split suggestion**")
     print("\nMain artist:")
-    print("\t"+L[0])
+    print("\t"+L1[0])
     print("Featuring artist(s):")
-    for feat_art in L[1:]:
+    for feat_art in L1[1:]:
         print("\t"+feat_art)
-    return L[0], L[1:]
+    return L1[0], L1[1:]
 
 def insert_artist(artist, con):
     global ARTIST_DICT
@@ -492,7 +383,7 @@ def insert_artist(artist, con):
 def correct_artist(artist):
     print('Artist: {}'.format(artist))
     print('\n!!! No artist with this exact name found in the database.')
-    like_list = match_caseless(artist, list(ARTIST_DICT), n=5, cutoff=0.6)
+    like_list = match_caseless(artist, list(ARTIST_DICT), n=8, cutoff=0.6)
     print('     Do you want to: (Enter the letter in brackets to choose)')
     print('     (u) Use {}'.format(artist))
     if len(like_list) > 0:
@@ -503,20 +394,18 @@ def correct_artist(artist):
             x = x + 1
     print('  or (t) Type the artistname')
     keuze = input().lower()
-    if keuze == 'u':
-        return artist
-    if keuze == 't':
-        artist = input('Enter artist name: ')
-        return artist
     while True:
+        if keuze == 'u':
+            return artist
+        if keuze == 't':
+            artist = input('Enter artist name: ')
+            return artist
         if len(keuze) != 1 or ord(keuze) < 97 or ord(keuze) > 96+len(like_list):
             print('Wrong choice, use one of the suggested letters for the alternatives.')
-            print('(or you might use "u" to use the default artist)')
+            print('(or you might use "u" or "t")')
             keuze = input().lower()
         else:
             break
-        if keuze == 'u':
-            return(artist)
     return(like_list[ord(keuze)-97])
 
 def match_caseless(word, possibilities, *args, **kwargs):
