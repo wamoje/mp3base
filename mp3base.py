@@ -145,6 +145,18 @@ def create_artist_dict(con):
     ARTIST_DICT = dict(artists)
 
 def processtrack(con, root, name):
+# First, check if track was already processed in a previous run
+    disc, path = finddiscpath(root)
+    logmsg("Disc: {}".format(disc))
+    logmsg("Path: {}".format(path))
+    c = con.cursor()
+    c.execute("SELECT count(*) FROM tracks WHERE disc = ? AND path = ? AND file = ?",
+            (disc, path, name))
+    exists = c.fetchone()[0]
+    if exists:
+        print('##### Already processed: {} - {} - {} #####'.format(disc, path, name))
+        return
+
     print("\n"+("-"*40))
     logmsg("Root: {}".format(root))
     logmsg("File: {}".format(name))
@@ -197,9 +209,6 @@ def processtrack(con, root, name):
         return
     seconds = round(mpf.info.time_secs)
     bytes = mpf.info.size_bytes
-    disc, path = finddiscpath(root)
-    logmsg("Disc: {}".format(disc))
-    logmsg("Path: {}".format(path))
 
 # Create rows in db
 # First split artists and featuring artists.
@@ -219,7 +228,6 @@ def processtrack(con, root, name):
     for featuring_artist in album_featuring:
         featuring_artist = insert_artist(featuring_artist, con)
         album_feat_corrected.append(featuring_artist)
-    c = con.cursor()
 # album
     albumartistid = ARTIST_DICT[albumartist]
     insert_album_sql = ("INSERT INTO albums (title, artist_id) "
