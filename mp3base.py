@@ -343,14 +343,27 @@ def autosplit(artist):
                  " with ", " With ", " WITH ",
                  "&", "+", ",", "/"
                  ]
+    
+    try:
+        J = artist.index(', Jr.')
+    except ValueError:
+        pass
+    else:
+        artist = artist[:J] + artist[J+1:]  #filter out the comma
+
     L1 = [ artist ]
-    for splitter in splitlist:
+    for splitter in splitlist:  
         L3 = []
         for part in L1:
             L2 = part.split(splitter)
             L3.extend(L2)
         L1 = L3[:]
-    L1 = [part.strip() for part in L3]
+    L2 = [part.strip() for part in L3]
+    L1 = []
+    for x in L2:
+        if x.lower().startswith('the '):
+            x = x[4:]
+        L1.append(x)
 
     print("\n**Split suggestion**")
     print("\nMain artist:")
