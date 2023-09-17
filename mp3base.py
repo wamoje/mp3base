@@ -12,11 +12,14 @@ import difflib
 import itertools
 
 def getargs():
+    global CHECK_ID3
     if '-h' in sys.argv:
-        print('{} [-d dbfile] [-m mp3directory]'.format(sys.argv[0]))
+        print('{} [-c] [-d dbfile] [-m mp3directory]'.format(sys.argv[0]))
         print('''
         scans mp3directory and subdirectories for mp3 files and registers
         ID3-tag data in an sqlite3 database.
+              
+        -c only checks for completeness of ID3 tag. It will not update the DB.
         
         If dbfilename is not specified it will default to mp3.db in the current directory.
         An existing DB will be expanded, otherwise a new db will be created.
@@ -24,7 +27,8 @@ def getargs():
         If mp3directory is not specified the current directory is used.
         ''')
         sys.exit()
-
+    if '-c' in sys.argv:
+        CHECK_ID3 = True
     if '-m' in sys.argv:
         mp3dir = sys.argv[sys.argv.index('-m') + 1]
     else:
@@ -41,8 +45,12 @@ def getargs():
     return mp3dir, mp3db
 
 def logmsg(msg):
-    logging.info(msg)
-    print(msg)
+    if not CHECK_ID3:
+        logging.info(msg)
+        print(msg)
+        return
+    if msg.startswith("===FOUT"):
+        print(msg)
 
 def connectdb(mp3db):
     """ create a database connection to the SQLite database
@@ -125,14 +133,15 @@ def prepdb(mp3db):
 
 def dirwalk(con, dir):
     x = 0
-    create_artist_dict(con)
+    if not CHECK_ID3:
+        create_artist_dict(con)
     for root, dirs, files in os.walk(dir, topdown=True):
         for name in files:
             if '.' in name:
                 if name.rsplit(sep='.', maxsplit=1)[1].upper() == 'MP3':
                     processtrack(con, root, name)
                     x += 1
-                    print('\n\n'+'='*15+'>>> Track {} <<<'.format(x)+'='*15)
+                    logmsg('\n\n'+'='*15+'>>> Track {} <<<'.format(x)+'='*15)
     logmsg('{} mp3 files processed'.format(x))
     return
 
@@ -149,15 +158,16 @@ def processtrack(con, root, name):
     disc, path = finddiscpath(root)
     logmsg("Disc: {}".format(disc))
     logmsg("Path: {}".format(path))
-    c = con.cursor()
-    c.execute("SELECT count(*) FROM tracks WHERE disc = ? AND path = ? AND file = ?",
-            (disc, path, name))
-    exists = c.fetchone()[0]
-    if exists:
-        print('##### Already processed: {} - {} - {} #####'.format(disc, path, name))
-        return
+    if not CHECK_ID3:
+        c = con.cursor()
+        c.execute("SELECT count(*) FROM tracks WHERE disc = ? AND path = ? AND file = ?",
+                (disc, path, name))
+        exists = c.fetchone()[0]
+        if exists:
+            logmsg('##### Already processed: {} - {} - {} #####'.format(disc, path, name))
+            return
 
-    print("\n"+("-"*40))
+    logmsg("\n"+("-"*40))
     logmsg("Root: {}".format(root))
     logmsg("File: {}".format(name))
     mpf = eyed3.load(os.path.join(root, name))
@@ -209,6 +219,9 @@ def processtrack(con, root, name):
         return
     seconds = round(mpf.info.time_secs)
     bytes = mpf.info.size_bytes
+
+    if CHECK_ID3:
+        return  # No DB actions for -c run
 
 # Create rows in db
 # First split artists and featuring artists.
@@ -308,6 +321,7 @@ def unfeat_artist(artist):
         '&' in artist.lower() or
         '+' in artist.lower() or
         '/' in artist.lower() or
+        ';' in artist.lower() or
         ',' in artist.lower()
        ):
         as_artist, as_L = autosplit(artist)
@@ -349,7 +363,7 @@ def autosplit(artist):
                  " ft ", " ft.", " Ft ", " Ft.",
                  " and ", " And ", " AND ",
                  " with ", " With ", " WITH ",
-                 "&", "+", ",", "/"
+                 "&", "+", ",", "/", ";"
                  ]
     
     try:
@@ -375,10 +389,17 @@ def autosplit(artist):
 
     print("\n**Split suggestion**")
     print("\nMain artist:")
-    print("\t"+L1[0])
+    if L1[0] in ARTIST_DICT:
+        print("\t"+L1[0]+" <<<==Known artist")
+    else:
+        print("\t"+L1[0])
+
     print("Featuring artist(s):")
     for feat_art in L1[1:]:
-        print("\t"+feat_art)
+        if feat_art in ARTIST_DICT:
+            print("\t"+feat_art+" <<<==Known artist")
+        else:
+            print("\t"+feat_art)
     return L1[0], L1[1:]
 
 def insert_artist(artist, con):
@@ -454,17 +475,21 @@ ARTIST_DICT = {}
 LAST_FEATURED_ARTIST = ''
 LAST_UNFEATURED_ARTIST = ''
 LAST_FEATURINGS = []
+CHECK_ID3 = False
 
 logging.basicConfig(filename='mp3base.log', 
                     format='%(asctime)s %(levelname)s:%(message)s', 
                     level=logging.DEBUG)
 eyed3.log.setLevel("ERROR")
 mp3dir, mp3db = getargs()
-con = prepdb(mp3db)
-if con:
+if not CHECK_ID3:
+    con = prepdb(mp3db)
     logmsg("Counts at start:")
     showcounts(con)
-    dirwalk(con, mp3dir)
+else:
+    con = None
+dirwalk(con, mp3dir)
+if not CHECK_ID3:
     con.commit()
     logmsg("Counts at end:")
     showcounts(con)
