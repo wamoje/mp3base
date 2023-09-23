@@ -330,10 +330,10 @@ def unfeat_artist(artist):
         if as_artist in ARTIST_DICT and set(as_L).issubset(set(ARTIST_DICT.keys())):
             return as_artist, as_L
         ## else ask user
-        print("\n\nEnter 'u' to use suggested split (You'll be able to correct individual typo's later)")
-        print("Not entering 'u' will lead you into the manual splitting process")
+        print("\n\nEnter 'u' or space to use suggested split (You'll be able to correct individual typo's later)")
+        print("Not entering 'u' or space will lead you into the manual splitting process")
         answer = input().lower()
-        if answer == "u":
+        if answer == " " or answer == "u":
             LAST_FEATURED_ARTIST = artist
             LAST_UNFEATURED_ARTIST = as_artist
             LAST_FEATURINGS = as_L[:]
@@ -351,7 +351,7 @@ def unfeat_artist(artist):
     while True:
         print('Enter one featuring artist name')
         answer = input('>>>> OR "d" for done: ')
-        if answer == 'd' or answer == 'D':
+        if answer.lower() == 'd':
             break
         L.append(answer)
     LAST_FEATURINGS = L[:] # create a copy
@@ -425,9 +425,12 @@ def insert_artist(artist, con):
 def correct_artist(artist):
     print('Artist: {}'.format(artist))
     print('\n!!! No artist with this exact name found in the database.')
-    like_list = match_caseless(artist, list(ARTIST_DICT), n=8, cutoff=0.6)
+    like_list = match_caseless(artist, list(ARTIST_DICT), n=8, cutoff=0.7)
+    if not "unknown" in artist.lower() and len(like_list) == 0:
+        return artist
     print('     Do you want to: (Enter the letter in brackets to choose)')
     print('     (u) Use {}'.format(artist))
+    print('        (entering space is same as entering "u")')
     if len(like_list) > 0:
         print('Suggestions from existing artists:')
         x = 0
@@ -437,7 +440,7 @@ def correct_artist(artist):
     print('  or (t) Type the artistname')
     keuze = input().lower()
     while True:
-        if keuze == 'u':
+        if keuze == ' ' or keuze == 'u':
             return artist
         if keuze == 't':
             artist = input('Enter artist name: ')
