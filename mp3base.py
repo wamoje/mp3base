@@ -330,10 +330,10 @@ def unfeat_artist(artist):
         if as_artist in ARTIST_DICT and set(as_L).issubset(set(ARTIST_DICT.keys())):
             return as_artist, as_L
         ## else ask user
-        print("\n\nEnter 'u' or space to use suggested split (You'll be able to correct individual typo's later)")
-        print("Not entering 'u' or space will lead you into the manual splitting process")
-        answer = input().lower()
-        if answer == " " or answer == "u":
+        print("\n\nEnter just 'enter' to use suggested split (You'll be able to correct individual typo's later)")
+        print("Entering any text or letter will lead you into the manual splitting process")
+        answer = input()
+        if len(answer) == 0:
             LAST_FEATURED_ARTIST = artist
             LAST_UNFEATURED_ARTIST = as_artist
             LAST_FEATURINGS = as_L[:]
@@ -429,18 +429,18 @@ def correct_artist(artist):
     if not "unknown" in artist.lower() and len(like_list) == 0:
         return artist
     print('     Do you want to: (Enter the letter in brackets to choose)')
-    print('     (u) Use {}'.format(artist))
-    print('        (entering space is same as entering "u")')
+    print('     Use {}'.format(artist))
+    print('     >>> then just press ENTER.')
     if len(like_list) > 0:
         print('Suggestions from existing artists:')
         x = 0
         for l_artist in like_list:
-            print('     ({}) Use {}'.format(chr(x+97), l_artist))
+            print('    Enter ({}): Use {}'.format(chr(x+97), l_artist))
             x = x + 1
-    print('  or (t) Type the artistname')
+    print('  or enter (t) Type the artistname')
     keuze = input().lower()
     while True:
-        if keuze == ' ' or keuze == 'u':
+        if len(keuze) == 0:
             return artist
         if keuze == 't':
             artist = input('Enter artist name: ')
