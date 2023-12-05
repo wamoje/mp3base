@@ -289,6 +289,12 @@ def finddiscpath(root):
             return disc, path
         disc = 'T2K' + root[pos+13]       # A-Z
         return disc, path
+#Evergreen Top 1000 2023/Evergreen Top 1000 2023 #0051-0100
+    if 'Evergreen Top 1000' in root:
+        pos = root.index('Evergreen Top 1000')
+        path = root[pos+24:]
+        disc = 'E' + root[pos+50:pos+53]   # E001-E951
+        return disc, path
     return '0000', '/'       # not a familiar path structure
 
 def unfeat_artist(artist):
