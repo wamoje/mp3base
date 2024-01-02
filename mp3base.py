@@ -486,7 +486,7 @@ LAST_UNFEATURED_ARTIST = ''
 LAST_FEATURINGS = []
 CHECK_ID3 = False
 
-logging.basicConfig(filename='mp3base.log', 
+logging.basicConfig(filename='/tmp/mp3base.log', 
                     format='%(asctime)s %(levelname)s:%(message)s', 
                     level=logging.DEBUG)
 eyed3.log.setLevel("ERROR")
