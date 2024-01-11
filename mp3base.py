@@ -319,6 +319,7 @@ def unfeat_artist(artist):
     print('Artist in album/track:')
     print('>>> {} <<<'.format(artist))
 # Split automated?
+    artist = artist.replace('Little Feat', 'Little teaF') ## Mask bandname before splitting
     if ('feat' in artist.lower() or 
         ' ft' in artist.lower() or
         ' with ' in artist.lower() or
@@ -344,6 +345,8 @@ def unfeat_artist(artist):
             LAST_UNFEATURED_ARTIST = as_artist
             LAST_FEATURINGS = as_L[:]
             return as_artist, as_L
+    else:
+        artist = artist.replace('Little teaF', 'Little Feat') ## Unmask bandname when splitting was not done
 
     answer = input('\nSplit in artist and featurings? y/n: ').lower()
     if not answer == 'y':
@@ -389,9 +392,9 @@ def autosplit(artist):
     L2 = [part.strip() for part in L3]
     L1 = []
     for x in L2:
-        if x.lower().startswith('the '):
+        if x.lower().startswith('the '):   # Strip 'The '
             x = x[4:]
-        L1.append(x)
+        L1.append(x.replace('Little teaF', 'Little Feat'))  #Unmask bandname(s) after split
 
     print("\n**Split suggestion**")
     print("\nMain artist:")
